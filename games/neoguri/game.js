@@ -37,15 +37,32 @@ document.querySelectorAll('[data-control]').forEach(b=>{
 function suspend(){clearInput();game.pause();sync();}
 window.addEventListener('blur',suspend);document.addEventListener('visibilitychange',()=>{if(document.hidden)suspend();});
 function rect(x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(Math.round(x),Math.round(y),w,h);}
-function pixelSprite(pattern,x,y,scale,palette,flip=false){for(let r=0;r<pattern.length;r++)for(let c=0;c<pattern[r].length;c++){const color=palette[pattern[r][c]];if(color)rect(x+(flip?pattern[r].length-1-c:c)*scale,y+r*scale,scale,scale,color);}}
-const raccoon=['..bb....bb..','.bttb..bttb.','.bttttttttb.','bttttttttttb','bwwwwwwwwwwb','bwddwddwddwb','bwdwwddwwdwb','.bwwwddwwwb.','..bwwddwwb..','...bttttb...','..bttttttb..','..bttttttb..','...bb..bb...'];
-const palette={b:'#303447',t:'#b9a38f',w:'#f5e5ca',d:'#343745'};
-function drawRaccoon(){const p=game.player;if(p.invul>0&&Math.floor(game.elapsed*12)%2===0&&game.state==='playing')return;
- const walk=p.grounded&&!p.climbing&&Math.abs(Number(input().right)-Number(input().left))?Math.sin(game.elapsed*17)*2:0;
- ctx.save();ctx.translate(Math.round(p.x),Math.round(p.y));if(p.facing<0)ctx.scale(-1,1);
- // 줄무늬 꼬리와 직접 그린 픽셀 너구리
- rect(-24,-14,14,9,'#7b736e');rect(-25,-12,5,7,'#343745');rect(-15,-14,4,9,'#343745');
- pixelSprite(raccoon,-12,-29+walk,2,palette);rect(-9,-3,6,3,'#303447');rect(5,-3,6,3,'#303447');ctx.restore();
+// 사진을 참고해 만든 투명 캐릭터. 이미지 로딩 실패 시에도 게임은 계속됩니다.
+const heroImage=new Image();
+heroImage.src='assets/photo-hero-v1.webp';
+function drawHero(){
+ const p=game.player;
+ if(p.invul>0&&Math.floor(game.elapsed*12)%2===0&&game.state==='playing')return;
+ const controls=input();
+ const walking=p.grounded&&!p.climbing&&(controls.right||controls.left);
+ const bob=walking?Math.sin(game.elapsed*17)*1.2:0;
+ const tilt=walking?Math.sin(game.elapsed*17)*.035:p.climbing?Math.sin(game.elapsed*12)*.045:0;
+ ctx.save();ctx.translate(Math.round(p.x),Math.round(p.y));
+ if(p.facing<0)ctx.scale(-1,1);
+ ctx.rotate(tilt);
+ if(heroImage.complete&&heroImage.naturalWidth>0){
+   const height=44,width=height*heroImage.naturalWidth/heroImage.naturalHeight;
+   ctx.imageSmoothingEnabled=true;
+   ctx.drawImage(heroImage,-width/2,-height-Math.abs(bob),width,height);
+ }else{
+   // 작은 화면에서도 구분되는 앞머리·양갈래 머리·흰 원피스 대체 그림
+   rect(-12,-37,24,15,'#302a2c');rect(-17,-30,7,14,'#302a2c');rect(10,-30,7,14,'#302a2c');
+   rect(-9,-28,18,13,'#f2c4a1');rect(-10,-32,20,6,'#302a2c');
+   rect(-5,-25,2,3,'#302a2c');rect(4,-25,2,3,'#302a2c');
+   rect(-8,-15,16,6,'#fff5e3');rect(-12,-9,24,6,'#fff5e3');
+   rect(-7,-3,5,3,'#403947');rect(3,-3,5,3,'#403947');
+ }
+ ctx.restore();
 }
 function drawFruit(f){const x=f.x,y=f.y+Math.sin(game.elapsed*3+f.x)*1.4;ctx.save();ctx.translate(x,y);
  if(f.kind===0){rect(-7,-4,14,12,'#f49a49');rect(-5,-6,10,16,'#f9ab51');rect(-5,-4,3,4,'#ffe7a5');rect(0,-11,3,5,'#6faa7c');rect(3,-12,5,3,'#82cf92');}
@@ -63,7 +80,7 @@ function draw(){
  for(const b of game.bombs){rect(b.x-8,b.y-15,16,13,'#3e4358');rect(b.x-10,b.y-11,20,7,'#3e4358');rect(b.x-4,b.y-13,4,4,'#7f8997');rect(b.x,b.y-20,3,6,'#c5a974');rect(b.x+4,b.y-23,3,4,Math.floor(game.elapsed*7)%2?'#ffca78':'#ed816f');}
  game.fruits.filter(f=>!f.taken).forEach(drawFruit);
  for(const e of game.enemies){const bounce=Math.sin(game.elapsed*7+e.x*.01)>0?1:0;const y=e.y-bounce;rect(e.x-13,y-16,26,14,'#7ecca6');rect(e.x-9,y-20,18,5,'#7ecca6');rect(e.x-16,y-8,32,7,'#66aa90');rect(e.x-7,y-14,5,6,'#fff3cf');rect(e.x+4,y-14,5,6,'#fff3cf');rect(e.x-5+e.dir,y-12,2,3,'#233849');rect(e.x+5+e.dir,y-12,2,3,'#233849');rect(e.x-2,y-4,4,2,'#325a59');}
- drawRaccoon();rect(0,462,W,18,'#101b2b');ctx.font='10px monospace';ctx.fillStyle='#627e90';ctx.textAlign='center';ctx.fillText('과일을 모으고 달빛 과수원을 탐험하세요',280,475);
+ drawHero();rect(0,462,W,18,'#101b2b');ctx.font='10px monospace';ctx.fillStyle='#627e90';ctx.textAlign='center';ctx.fillText('과일을 모으고 달빛 과수원을 탐험하세요',280,475);
 }
 function frame(time){const delta=lastTime?Math.min((time-lastTime)/1000,.1):0;lastTime=time;
  if(game.state==='playing'){accumulator+=delta;while(accumulator>=1/60){game.update(1/60,input());accumulator-=1/60;if(game.state!=='playing'){accumulator=0;break;}}record();}else accumulator=0;
